@@ -149,8 +149,8 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 		bl_lvl = 0;
 	}
 
-	if (!c_conn->allow_bl_update) {
-		c_conn->unset_bl_level = bl_lvl;
+	if (!display->panel->bl_config.allow_bl_update) {
+		display->panel->bl_config.unset_bl_level = bl_lvl;
 		return 0;
 	}
 
@@ -172,7 +172,7 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 		}
 		rc = c_conn->ops.set_backlight(&c_conn->base,
 				c_conn->display, bl_lvl);
-		c_conn->unset_bl_level = 0;
+		display->panel->bl_config.unset_bl_level = 0;
 	}
 
 done:
@@ -702,14 +702,14 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 			return -EINVAL;
 		}
 		dsi_bl_config = &dsi_display->panel->bl_config;
-		if (!c_conn->allow_bl_update) {
-			c_conn->unset_bl_level = dsi_bl_config->bl_level;
+		if (!dsi_bl_config->allow_bl_update) {
+			dsi_bl_config->unset_bl_level = dsi_bl_config->bl_level;
 			return 0;
 		}
 		dsi_bl_config->bl_scale = bl_scale;
 		dsi_bl_config->bl_scale_sv = bl_scale_sv;
-		if (c_conn->unset_bl_level)
-			dsi_bl_config->bl_level = c_conn->unset_bl_level;
+		if (dsi_bl_config->unset_bl_level)
+			dsi_bl_config->bl_level = dsi_bl_config->unset_bl_level;
 
 		rc = c_conn->ops.set_backlight(&c_conn->base,
 				dsi_display, dsi_bl_config->bl_level);
@@ -732,7 +732,7 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 			SDE_ERROR("Invalid dp_panel null\n");
 	}
 
-	c_conn->unset_bl_level = 0;
+	dsi_bl_config->unset_bl_level = 0;
 
 	return rc;
 }
@@ -821,6 +821,8 @@ static int _sde_connector_update_dirty_properties(
 {
 	struct sde_connector *c_conn;
 	struct sde_connector_state *c_state;
+	struct dsi_display *dsi_display = NULL;
+	struct dsi_backlight_config *bl_config = NULL;
 	int idx;
 
 	if (!connector) {
@@ -830,6 +832,13 @@ static int _sde_connector_update_dirty_properties(
 
 	c_conn = to_sde_connector(connector);
 	c_state = to_sde_connector_state(connector->state);
+
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
+		dsi_display = c_conn->display;
+
+		if (dsi_display && dsi_display->panel)
+			bl_config = &dsi_display->panel->bl_config;
+	}
 
 	mutex_lock(&c_conn->property_info.property_lock);
 	while ((idx = msm_property_pop_dirty(&c_conn->property_info,
@@ -862,7 +871,7 @@ static int _sde_connector_update_dirty_properties(
 	 * Special handling for postproc properties and
 	 * for updating backlight if any unset backlight level is present
 	 */
-	if (c_conn->bl_scale_dirty || c_conn->unset_bl_level) {
+	if (c_conn->bl_scale_dirty || (bl_config && bl_config->unset_bl_level)) {
 		_sde_connector_update_bl_scale(c_conn);
 		c_conn->bl_scale_dirty = false;
 	}
@@ -912,7 +921,7 @@ void sde_connector_fod_pre_kickoff(struct drm_connector *connector)
 	dsi_panel_apply_requested_fod_hbm(panel);
 
 	if (!dsi_panel_get_fod_hbm(panel))
-		dsi_panel_set_fod_ui(panel, 0);		
+		dsi_panel_set_fod_ui(panel, 0);
 }
 
 void sde_connector_fod_post_kickoff(struct drm_connector *connector)
@@ -948,7 +957,7 @@ void sde_connector_fod_post_kickoff(struct drm_connector *connector)
 	if (fod_hbm_enabled && fod_hbm_enabled != old_fod_hbm_enabled) {
 		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_TX_COMPLETE);
 		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
-		dsi_panel_set_fod_ui(panel, 1);		
+		dsi_panel_set_fod_ui(panel, 1);
 	}
 
 	old_fod_hbm_enabled = fod_hbm_enabled;
@@ -1050,7 +1059,7 @@ void sde_connector_helper_bridge_disable(struct drm_connector *connector)
 {
 	int rc;
 	struct sde_connector *c_conn = NULL;
-	struct dsi_display *display;
+	struct dsi_display *display = NULL;
 	bool poms_pending = false;
 	struct sde_kms *sde_kms;
 
@@ -1083,7 +1092,8 @@ void sde_connector_helper_bridge_disable(struct drm_connector *connector)
 		backlight_update_status(c_conn->bl_device);
 	}
 
-	c_conn->allow_bl_update = false;
+	if (display && display->panel)
+		display->panel->bl_config.allow_bl_update = false;
 }
 
 void sde_connector_helper_bridge_enable(struct drm_connector *connector)
@@ -1111,7 +1121,8 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 				BL_UPDATE_DELAY_UNTIL_FIRST_FRAME)
 		sde_encoder_wait_for_event(c_conn->encoder,
 				MSM_ENC_TX_COMPLETE);
-	c_conn->allow_bl_update = true;
+
+	display->panel->bl_config.allow_bl_update = true;
 
 	if (!sde_in_trusted_vm(sde_kms) && c_conn->bl_device) {
 		c_conn->bl_device->props.power = FB_BLANK_UNBLANK;
