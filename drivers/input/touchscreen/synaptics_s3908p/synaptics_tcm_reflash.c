@@ -43,8 +43,8 @@
 #define ENABLE_SYS_REFLASH			true
 #define SYSFS_DIR_NAME				"reflash"
 #define CUSTOM_DIR_NAME				"custom"
-#define FW_IMAGE_NAME				"s3908p_xiaomi_l9_spi.img"
-#define FW_IMAGE_NAME_MANUAL		"s3908p_xiaomi_l9_spi.img"
+#define FW_IMAGE_NAME				"s3908p_xiaomi_k9e_spi.img"
+#define FW_IMAGE_NAME_MANUAL		"s3908p_xiaomi_k9e_spi.img"
 #define BOOT_CONFIG_ID				"BOOT_CONFIG"
 #define APP_CODE_ID					"APP_CODE"
 #define PROD_TEST_ID				"APP_PROD_TEST"
