@@ -30,7 +30,8 @@
 #include "cam_compat.h"
 #include "cam_cpas_hw.h"
 
-#define CAM_REQ_MGR_EVENT_MAX 30
+/* Xiaomi: enlarge from 60 to 150 */
+#define CAM_REQ_MGR_EVENT_MAX 150
 
 static struct cam_req_mgr_device g_dev;
 struct kmem_cache *g_cam_req_mgr_timer_cachep;
