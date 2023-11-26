@@ -36,6 +36,7 @@
 
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
+#include <drm/dsi_display_fod.h>
 #include "synaptics_tcm_core.h"
 
 #define TYPE_B_PROTOCOL
@@ -196,6 +197,7 @@ static void touch_fod_down_event(void)
 		input_sync(touch_hcd->input_dev);
 		LOGI(tcm_hcd->pdev->dev.parent, "FOD DOWN Dfetected\n");
 		tcm_hcd->fod_display_enabled = true;
+		dsi_display_primary_request_fod_hbm(1);
 	}
 }
 
@@ -207,6 +209,7 @@ static void touch_fod_up_event(void)
 	input_report_key(touch_hcd->input_dev, BTN_INFO, 0);
 	input_sync(touch_hcd->input_dev);
 	tcm_hcd->fod_display_enabled = false;
+	dsi_display_primary_request_fod_hbm(0);
 }
 
 int touch_flush_slots(struct syna_tcm_hcd *tcm_hcd)
@@ -284,6 +287,7 @@ int touch_free_objects(struct syna_tcm_hcd *tcm_hcd)
 	}
 #endif
 
+	dsi_display_primary_request_fod_hbm(0);
 	input_report_key(touch_hcd->input_dev,
 			BTN_TOUCH, 0);
 	input_report_key(touch_hcd->input_dev,
